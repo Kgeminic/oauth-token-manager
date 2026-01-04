@@ -30,7 +30,6 @@ const tokens = new TokenManager({
     namespace: env.TOKEN_KV,
     encryptionKey: env.TOKEN_ENCRYPTION_KEY,
   }),
-  encryptionKey: env.TOKEN_ENCRYPTION_KEY,
   providers: {
     google: {
       clientId: env.GOOGLE_CLIENT_ID,
@@ -78,8 +77,7 @@ Main class for token management.
 
 ```typescript
 const tokens = new TokenManager({
-  storage: TokenStorage,        // KVStorage or custom
-  encryptionKey: string,        // For encrypting tokens at rest
+  storage: TokenStorage,        // KVStorage or custom (handles encryption)
   providers: {                  // Provider configs for refresh
     google?: ProviderConfig,
     microsoft?: ProviderConfig,

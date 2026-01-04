@@ -99,8 +99,8 @@ export interface ProviderConfig {
 export interface TokenManagerConfig {
   /** Storage adapter (KV or D1) */
   storage: TokenStorage;
-  /** Encryption key for tokens at rest (32+ bytes recommended) */
-  encryptionKey: string;
+  /** @deprecated Encryption is handled by the storage adapter. This field is unused. */
+  encryptionKey?: string;
   /** Provider configurations for token refresh */
   providers: {
     google?: ProviderConfig;
