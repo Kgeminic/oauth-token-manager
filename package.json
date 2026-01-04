@@ -1,0 +1,88 @@
+{
+  "name": "@jezweb/oauth-token-manager",
+  "version": "0.1.0",
+  "description": "OAuth token management for Cloudflare Workers - store, refresh, and retrieve tokens for downstream API access",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./storage/kv": {
+      "types": "./dist/storage/kv.d.ts",
+      "import": "./dist/storage/kv.js"
+    },
+    "./storage/d1": {
+      "types": "./dist/storage/d1.d.ts",
+      "import": "./dist/storage/d1.js"
+    },
+    "./providers/google": {
+      "types": "./dist/providers/google.d.ts",
+      "import": "./dist/providers/google.js"
+    },
+    "./providers/microsoft": {
+      "types": "./dist/providers/microsoft.d.ts",
+      "import": "./dist/providers/microsoft.js"
+    },
+    "./providers/github": {
+      "types": "./dist/providers/github.d.ts",
+      "import": "./dist/providers/github.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SECURITY.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "oauth",
+    "token",
+    "cloudflare",
+    "workers",
+    "kv",
+    "d1",
+    "mcp",
+    "api",
+    "google",
+    "microsoft",
+    "github"
+  ],
+  "author": "Jezweb <jeremy@jezweb.net>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jezweb/oauth-token-manager.git"
+  },
+  "homepage": "https://github.com/jezweb/oauth-token-manager#readme",
+  "bugs": {
+    "url": "https://github.com/jezweb/oauth-token-manager/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250109.0",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.2"
+  },
+  "peerDependencies": {
+    "@cloudflare/workers-types": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@cloudflare/workers-types": {
+      "optional": true
+    }
+  }
+}
