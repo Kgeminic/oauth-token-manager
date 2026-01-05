@@ -10,6 +10,10 @@ export interface StoredToken {
   userId: string;
   /** Provider identifier (e.g., 'google', 'microsoft', 'github') */
   provider: string;
+  /** Account alias for multi-account support (e.g., 'work', 'personal'). Default: 'default' */
+  alias?: string;
+  /** Display name for this account (e.g., email address) */
+  displayName?: string;
   /** OAuth access token (encrypted) */
   accessToken: string;
   /** OAuth refresh token (encrypted, optional for providers like GitHub) */
@@ -40,6 +44,10 @@ export interface TokenData {
 export interface StoreTokenOptions {
   userId: string;
   provider: string;
+  /** Account alias for multi-account support (e.g., 'work', 'personal'). Default: 'default' */
+  alias?: string;
+  /** Display name for this account (e.g., user's email address) */
+  displayName?: string;
   accessToken: string;
   refreshToken?: string;
   expiresAt?: number;
@@ -52,6 +60,8 @@ export interface StoreTokenOptions {
 export interface GetTokenOptions {
   userId: string;
   provider: string;
+  /** Account alias for multi-account support. Default: 'default' */
+  alias?: string;
   /** If specified, verify these scopes are present */
   requiredScopes?: string[];
   /** Buffer time in ms before expiry to trigger refresh (default: 5 minutes) */
@@ -66,10 +76,14 @@ export interface ListTokensOptions {
 }
 
 /**
- * Summary of a connected provider
+ * Summary of a connected provider/account
  */
 export interface ConnectedProvider {
   provider: string;
+  /** Account alias (e.g., 'work', 'personal'). Default: 'default' */
+  alias: string;
+  /** Display name for this account (e.g., email address) */
+  displayName?: string;
   scopes: string[];
   connectedAt: number;
   expiresAt?: number;
@@ -81,6 +95,8 @@ export interface ConnectedProvider {
 export interface RevokeTokenOptions {
   userId: string;
   provider: string;
+  /** Account alias. Default: 'default' */
+  alias?: string;
 }
 
 /**
@@ -118,9 +134,10 @@ export interface TokenManagerConfig {
  */
 export interface TokenStorage {
   /**
-   * Get a stored token by user and provider
+   * Get a stored token by user, provider, and optional alias
+   * @param alias - Account alias. Default: 'default'
    */
-  get(userId: string, provider: string): Promise<StoredToken | null>;
+  get(userId: string, provider: string, alias?: string): Promise<StoredToken | null>;
 
   /**
    * Store or update a token
@@ -129,11 +146,12 @@ export interface TokenStorage {
 
   /**
    * Delete a token
+   * @param alias - Account alias. Default: 'default'
    */
-  delete(userId: string, provider: string): Promise<void>;
+  delete(userId: string, provider: string, alias?: string): Promise<void>;
 
   /**
-   * List all providers for a user
+   * List all connected accounts for a user
    */
   list(userId: string): Promise<ConnectedProvider[]>;
 }

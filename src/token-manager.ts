@@ -91,13 +91,16 @@ export class TokenManager {
    */
   async store(options: StoreTokenOptions): Promise<void> {
     const now = Date.now();
+    const alias = options.alias ?? 'default';
 
     // Check if token already exists (update vs create)
-    const existing = await this.storage.get(options.userId, options.provider);
+    const existing = await this.storage.get(options.userId, options.provider, alias);
 
     const token: StoredToken = {
       userId: options.userId,
       provider: options.provider,
+      alias,
+      displayName: options.displayName,
       accessToken: options.accessToken,
       refreshToken: options.refreshToken,
       expiresAt: options.expiresAt,
@@ -122,10 +125,10 @@ export class TokenManager {
    * @throws ProviderNotConfiguredError - Provider not in config (for refresh)
    */
   async get(options: GetTokenOptions): Promise<TokenData> {
-    const { userId, provider, requiredScopes, refreshBuffer } = options;
+    const { userId, provider, alias = 'default', requiredScopes, refreshBuffer } = options;
 
     // Fetch stored token
-    const stored = await this.storage.get(userId, provider);
+    const stored = await this.storage.get(userId, provider, alias);
 
     if (!stored) {
       throw new TokenNotFoundError(userId, provider);
@@ -178,14 +181,15 @@ export class TokenManager {
    * the provider's revocation endpoint.
    */
   async revoke(options: RevokeTokenOptions): Promise<void> {
-    await this.storage.delete(options.userId, options.provider);
+    const alias = options.alias ?? 'default';
+    await this.storage.delete(options.userId, options.provider, alias);
   }
 
   /**
    * Check if a user has a token for a provider (without retrieving it)
    */
-  async has(userId: string, provider: string): Promise<boolean> {
-    const token = await this.storage.get(userId, provider);
+  async has(userId: string, provider: string, alias: string = 'default'): Promise<boolean> {
+    const token = await this.storage.get(userId, provider, alias);
     return token !== null;
   }
 
@@ -198,7 +202,7 @@ export class TokenManager {
    * 3. Temporary error: Re-throws error (caller can retry)
    */
   private async refreshToken(stored: StoredToken): Promise<TokenData> {
-    const { userId, provider, refreshToken } = stored;
+    const { userId, provider, alias = 'default', refreshToken } = stored;
 
     // Check for refresh token
     if (!refreshToken) {
@@ -232,9 +236,9 @@ export class TokenManager {
     // Check if token was revoked
     if (this.isRefreshFailure(result)) {
       // Auto-delete the dead token from storage
-      await this.storage.delete(userId, provider);
+      await this.storage.delete(userId, provider, alias);
       console.log(
-        `[TokenManager] Token revoked for ${userId}/${provider}, deleted from storage. ` +
+        `[TokenManager] Token revoked for ${userId}/${provider}/${alias}, deleted from storage. ` +
           `Error: ${result.errorCode}`
       );
       throw new TokenRevokedError(userId, provider, result.errorCode);
