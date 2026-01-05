@@ -9,7 +9,7 @@
  * Requires `access_type=offline` during initial OAuth to get refresh token
  */
 
-import type { TokenProvider, ProviderConfig, RefreshResult } from '../types';
+import type { TokenProvider, ProviderConfig, RefreshResult, RefreshFailure } from '../types';
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
@@ -26,6 +26,9 @@ interface GoogleErrorResponse {
   error_description?: string;
 }
 
+/** Google error codes that indicate permanent token revocation */
+const REVOCATION_ERRORS = ['invalid_grant', 'unauthorized_client'];
+
 /**
  * Google OAuth token provider
  */
@@ -36,53 +39,47 @@ export class GoogleProvider implements TokenProvider {
   async refresh(
     refreshToken: string,
     config: ProviderConfig
-  ): Promise<RefreshResult | null> {
-    try {
-      const response = await fetch(TOKEN_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          client_id: config.clientId,
-          client_secret: config.clientSecret,
-          refresh_token: refreshToken,
-          grant_type: 'refresh_token',
-        }).toString(),
-      });
+  ): Promise<RefreshResult | RefreshFailure> {
+    const response = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }).toString(),
+    });
 
-      if (!response.ok) {
-        const error = (await response.json()) as GoogleErrorResponse;
-        console.error(
-          `[GoogleProvider] Token refresh failed: ${error.error} - ${error.error_description}`
-        );
+    if (!response.ok) {
+      const error = (await response.json()) as GoogleErrorResponse;
+      console.error(
+        `[GoogleProvider] Token refresh failed: ${error.error} - ${error.error_description}`
+      );
 
-        // Check for specific errors that indicate re-auth is needed
-        if (
-          error.error === 'invalid_grant' ||
-          error.error === 'unauthorized_client'
-        ) {
-          // Refresh token is invalid/revoked - user needs to re-authenticate
-          return null;
-        }
-
-        // Other errors - throw to retry later
-        throw new Error(`Token refresh failed: ${error.error}`);
+      // Check for permanent revocation errors
+      if (REVOCATION_ERRORS.includes(error.error)) {
+        return {
+          revoked: true,
+          errorCode: error.error,
+          errorMessage: error.error_description,
+        };
       }
 
-      const data = (await response.json()) as GoogleTokenResponse;
-
-      return {
-        accessToken: data.access_token,
-        // Google may return a new refresh token (rare, but handle it)
-        refreshToken: data.refresh_token,
-        expiresAt: Date.now() + data.expires_in * 1000,
-      };
-    } catch (error) {
-      console.error('[GoogleProvider] Refresh error:', error);
-      // Network errors or unexpected issues - return null to trigger re-auth
-      return null;
+      // Other errors (rate limit, server error) - throw for retry
+      throw new Error(`Token refresh failed: ${error.error} - ${error.error_description || ''}`);
     }
+
+    const data = (await response.json()) as GoogleTokenResponse;
+
+    return {
+      accessToken: data.access_token,
+      // Google may return a new refresh token (rare, but handle it)
+      refreshToken: data.refresh_token,
+      expiresAt: Date.now() + data.expires_in * 1000,
+    };
   }
 }
 

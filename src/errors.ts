@@ -61,6 +61,26 @@ export class TokenExpiredError extends TokenManagerError {
 }
 
 /**
+ * Token was revoked by the user or admin
+ *
+ * This is a permanent failure - the token has been deleted from storage.
+ * Recovery: Redirect user to OAuth flow to re-authenticate
+ */
+export class TokenRevokedError extends TokenManagerError {
+  constructor(
+    public readonly userId: string,
+    public readonly provider: string,
+    public readonly providerError?: string
+  ) {
+    super(
+      `Token for user "${userId}" and provider "${provider}" was revoked. ${providerError ? `Provider error: ${providerError}. ` : ''}User needs to re-authenticate.`,
+      'TOKEN_REVOKED'
+    );
+    this.name = 'TokenRevokedError';
+  }
+}
+
+/**
  * Token exists but doesn't have the required scopes
  *
  * Recovery: Redirect user to OAuth flow with incremental consent for missing scopes

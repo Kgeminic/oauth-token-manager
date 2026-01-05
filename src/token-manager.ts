@@ -17,11 +17,13 @@ import type {
   ListTokensOptions,
   ConnectedProvider,
   RevokeTokenOptions,
+  RefreshFailure,
 } from './types';
 
 import {
   TokenNotFoundError,
   TokenExpiredError,
+  TokenRevokedError,
   InsufficientScopesError,
   ProviderNotConfiguredError,
 } from './errors';
@@ -189,6 +191,11 @@ export class TokenManager {
 
   /**
    * Refresh an expired token
+   *
+   * Handles three outcomes:
+   * 1. Success: Returns new token data, updates storage
+   * 2. Revoked: Deletes token from storage, throws TokenRevokedError
+   * 3. Temporary error: Re-throws error (caller can retry)
    */
   private async refreshToken(stored: StoredToken): Promise<TokenData> {
     const { userId, provider, refreshToken } = stored;
@@ -219,19 +226,26 @@ export class TokenManager {
       throw new TokenExpiredError(userId, provider, 'refresh_failed');
     }
 
-    // Attempt refresh
-    const refreshed = await providerImpl.refresh(refreshToken, providerConfig);
+    // Attempt refresh - may throw for temporary errors (network, rate limit)
+    const result = await providerImpl.refresh(refreshToken, providerConfig);
 
-    if (!refreshed) {
-      throw new TokenExpiredError(userId, provider, 'refresh_failed');
+    // Check if token was revoked
+    if (this.isRefreshFailure(result)) {
+      // Auto-delete the dead token from storage
+      await this.storage.delete(userId, provider);
+      console.log(
+        `[TokenManager] Token revoked for ${userId}/${provider}, deleted from storage. ` +
+          `Error: ${result.errorCode}`
+      );
+      throw new TokenRevokedError(userId, provider, result.errorCode);
     }
 
     // Update stored token with new values
     const updatedToken: StoredToken = {
       ...stored,
-      accessToken: refreshed.accessToken,
-      refreshToken: refreshed.refreshToken ?? stored.refreshToken,
-      expiresAt: refreshed.expiresAt,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken ?? stored.refreshToken,
+      expiresAt: result.expiresAt,
       updatedAt: Date.now(),
     };
 
@@ -243,6 +257,18 @@ export class TokenManager {
       expiresAt: updatedToken.expiresAt,
       scopes: updatedToken.scopes,
     };
+  }
+
+  /**
+   * Type guard for RefreshFailure
+   */
+  private isRefreshFailure(result: unknown): result is RefreshFailure {
+    return (
+      typeof result === 'object' &&
+      result !== null &&
+      'revoked' in result &&
+      (result as RefreshFailure).revoked === true
+    );
   }
 
   /**

@@ -147,16 +147,16 @@ export interface TokenProvider {
 
   /**
    * Refresh an expired access token
-   * @returns New token data, or null if refresh failed (user needs to re-auth)
+   *
+   * @returns
+   * - RefreshResult: New token data on success
+   * - RefreshFailure: Token was permanently revoked (auto-cleanup recommended)
+   * - throws Error: Temporary failure (network, rate limit) - retry later
    */
   refresh(
     refreshToken: string,
     config: ProviderConfig
-  ): Promise<{
-    accessToken: string;
-    refreshToken?: string;
-    expiresAt?: number;
-  } | null>;
+  ): Promise<RefreshResult | RefreshFailure>;
 
   /**
    * Whether this provider supports token refresh
@@ -174,4 +174,16 @@ export interface RefreshResult {
   refreshToken?: string;
   /** New expiration time */
   expiresAt?: number;
+}
+
+/**
+ * Result when token refresh fails
+ */
+export interface RefreshFailure {
+  /** Token was permanently invalidated (revoked by user/admin) - should delete from storage */
+  revoked: true;
+  /** Error code from provider (e.g., 'invalid_grant') */
+  errorCode?: string;
+  /** Human-readable error message */
+  errorMessage?: string;
 }

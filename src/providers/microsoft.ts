@@ -13,7 +13,7 @@
  * - '{tenant-id}': Specific organization only
  */
 
-import type { TokenProvider, ProviderConfig, RefreshResult } from '../types';
+import type { TokenProvider, ProviderConfig, RefreshResult, RefreshFailure } from '../types';
 
 const DEFAULT_TENANT = 'common';
 
@@ -32,6 +32,14 @@ interface MicrosoftErrorResponse {
 }
 
 /**
+ * Microsoft AADSTS error codes that indicate permanent token revocation
+ * - 70000: Refresh token expired
+ * - 50173: Refresh token expired (password change)
+ * - 700082: Refresh token expired (inactivity)
+ */
+const REVOCATION_ERROR_CODES = [70000, 50173, 700082];
+
+/**
  * Microsoft OAuth token provider
  */
 export class MicrosoftProvider implements TokenProvider {
@@ -45,58 +53,54 @@ export class MicrosoftProvider implements TokenProvider {
   async refresh(
     refreshToken: string,
     config: ProviderConfig
-  ): Promise<RefreshResult | null> {
+  ): Promise<RefreshResult | RefreshFailure> {
     const tenantId = config.tenantId ?? DEFAULT_TENANT;
     const tokenUrl = this.getTokenUrl(tenantId);
 
-    try {
-      const response = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          client_id: config.clientId,
-          client_secret: config.clientSecret,
-          refresh_token: refreshToken,
-          grant_type: 'refresh_token',
-        }).toString(),
-      });
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }).toString(),
+    });
 
-      if (!response.ok) {
-        const error = (await response.json()) as MicrosoftErrorResponse;
-        console.error(
-          `[MicrosoftProvider] Token refresh failed: ${error.error} - ${error.error_description}`
-        );
+    if (!response.ok) {
+      const error = (await response.json()) as MicrosoftErrorResponse;
+      console.error(
+        `[MicrosoftProvider] Token refresh failed: ${error.error} - ${error.error_description}`
+      );
 
-        // Check for specific AADSTS errors that indicate re-auth is needed
-        // AADSTS70000: Refresh token expired
-        // AADSTS50173: Refresh token expired (password change)
-        // AADSTS700082: Refresh token expired (inactivity)
-        if (
-          error.error === 'invalid_grant' ||
-          error.error_codes?.some((code) =>
-            [70000, 50173, 700082].includes(code)
-          )
-        ) {
-          return null;
-        }
+      // Check for permanent revocation errors
+      const isRevoked =
+        error.error === 'invalid_grant' ||
+        error.error_codes?.some((code) => REVOCATION_ERROR_CODES.includes(code));
 
-        throw new Error(`Token refresh failed: ${error.error}`);
+      if (isRevoked) {
+        return {
+          revoked: true,
+          errorCode: error.error,
+          errorMessage: error.error_description,
+        };
       }
 
-      const data = (await response.json()) as MicrosoftTokenResponse;
-
-      return {
-        accessToken: data.access_token,
-        // Microsoft typically returns a new refresh token - always use it!
-        refreshToken: data.refresh_token,
-        expiresAt: Date.now() + data.expires_in * 1000,
-      };
-    } catch (error) {
-      console.error('[MicrosoftProvider] Refresh error:', error);
-      return null;
+      // Other errors (rate limit, server error) - throw for retry
+      throw new Error(`Token refresh failed: ${error.error} - ${error.error_description || ''}`);
     }
+
+    const data = (await response.json()) as MicrosoftTokenResponse;
+
+    return {
+      accessToken: data.access_token,
+      // Microsoft typically returns a new refresh token - always use it!
+      refreshToken: data.refresh_token,
+      expiresAt: Date.now() + data.expires_in * 1000,
+    };
   }
 }
 

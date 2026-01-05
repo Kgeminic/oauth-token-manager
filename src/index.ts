@@ -61,6 +61,7 @@ export type {
   ConnectedProvider,
   RevokeTokenOptions,
   RefreshResult,
+  RefreshFailure,
 } from './types';
 
 // Errors
@@ -68,6 +69,7 @@ export {
   TokenManagerError,
   TokenNotFoundError,
   TokenExpiredError,
+  TokenRevokedError,
   InsufficientScopesError,
   ProviderNotConfiguredError,
   CryptoError,

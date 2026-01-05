@@ -1,6 +1,6 @@
 {
   "name": "@jezweb/oauth-token-manager",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OAuth token management for Cloudflare Workers - store, refresh, and retrieve tokens for downstream API access",
   "type": "module",
   "main": "dist/index.js",

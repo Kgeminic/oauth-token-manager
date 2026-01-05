@@ -15,13 +15,13 @@
  * DELETE /applications/{client_id}/token
  */
 
-import type { TokenProvider, ProviderConfig, RefreshResult } from '../types';
+import type { TokenProvider, ProviderConfig, RefreshResult, RefreshFailure } from '../types';
 
 /**
  * GitHub OAuth token provider
  *
- * Note: GitHub tokens don't expire, so refresh() is a no-op that
- * always returns null (indicating no refresh was needed/possible).
+ * Note: GitHub tokens don't expire, so refresh() should never be called.
+ * If it is called, the token must have been revoked.
  */
 export class GitHubProvider implements TokenProvider {
   readonly id = 'github';
@@ -30,14 +30,17 @@ export class GitHubProvider implements TokenProvider {
   async refresh(
     _refreshToken: string,
     _config: ProviderConfig
-  ): Promise<RefreshResult | null> {
-    // GitHub tokens don't expire - no refresh needed
-    // If a token is invalid, user needs to re-authenticate
+  ): Promise<RefreshResult | RefreshFailure> {
+    // GitHub tokens don't expire - if we're here, the token was revoked
     console.warn(
       '[GitHubProvider] refresh() called but GitHub tokens do not expire. ' +
-        'If the token is invalid, user needs to re-authenticate.'
+        'The token must have been revoked.'
     );
-    return null;
+    return {
+      revoked: true,
+      errorCode: 'github_tokens_dont_expire',
+      errorMessage: 'GitHub tokens do not expire. If invalid, the token was revoked.',
+    };
   }
 }
 
