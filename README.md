@@ -181,4 +181,4 @@ See [SECURITY.md](./SECURITY.md) for security considerations.
 
 ## License
 
-MIT © [Jezweb](https://jezweb.com.au)
+MIT © [Kurt]
