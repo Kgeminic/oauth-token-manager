@@ -1,4 +1,4 @@
-# @jezweb/oauth-token-manager
+# @kgeminic/oauth-token-manager
 
 OAuth token management for Cloudflare Workers. Store, refresh, and retrieve tokens for downstream API access.
 
